@@ -1,0 +1,56 @@
+version: '2'
+services:
+  
+  zookeeper:
+    image: wurstmeister/zookeeper
+    ports:
+      - "2181:2181"
+  
+  
+  prometheus:
+    image: prom/prometheus:latest
+    #container_name: prometheus
+    ports:
+    - '9090:9090/tcp'
+    command:
+    - '--config.file=/etc/prometheus/prometheus.yml'
+    volumes:
+    - ${PWD}/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    links:
+      - kafka-cluster 
+  
+  
+  kafka-cluster:
+    image: dockerpromkafka:latest
+    #build:
+    #  context: .
+    links:
+      - zookeeper
+    ports: 
+      - "9092:9092"
+      
+    environment:
+      HOSTNAME_COMMAND: "docker info | grep ^Name: | cut -d' ' -f 2" 
+      # HOSTNAME_COMMAND: "curl http://169.254.169.254/latest/meta-data/public-hostname" # AWS Only
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      EXTRA_ARGS: -javaagent:/opt/kafka/libs/jmx_prometheus_javaagent.jar=7070:/opt/kafka/libs/kafka.yml
+      KAFKA_ZOOKEEPER_CONNECTION_TIMEOUT_MS: 16000
+      #KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
+      #KAFKA_AUTO_LEADER_REBALANCE_ENABLE: "true"
+      #KAFKA_ADVERTISED_LISTENERS: INSIDE://:9092,OUTSIDE://_{HOSTNAME_COMMAND}:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://192.168.99.108:9092
+      #KAFKA_LISTENERS: INSIDE://:9092,OUTSIDE://:9094
+      KAFKA_LISTENERS: PLAINTEXT://:9092
+      #KAFKA_INTER_BROKER_LISTENER_NAME: INSIDE
+      #KAFKA_ADVERTISED_PROTOCOL_NAME: OUTSIDE
+      KAFKA_ADVERTISED_PORT: 9092
+      #KAFKA_PROTOCOL_NAME: INSIDE
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
+      #KAFKA_CREATE_TOPICS: myTopic:3:3,anotherTopic:2:2
+      #KAFKA_CREATE_TOPICS: myTopic:1:1
+      
+      #KAFKA_JMX_OPTS: -Dcom.sun.management.jmxremote=true -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname="192.168.99.108" -Djava.net.preferIPv4Stack=true -Dcom.sun.management.jmxremote.rmi.port=9999
+      KAFKA_JMX_OPTS: "-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=127.0.0.1"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock     
+
